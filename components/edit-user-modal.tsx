@@ -144,10 +144,10 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
           <DialogFooter className="mt-4">
             <Button
               type="button"
-              variant="outline"
+              variant="destructive"
               onClick={() => onOpenChange(false)}
               disabled={mutation.isPending}
-              className="border-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.06]"
+              className="rounded-xl"
             >
               Cancel
             </Button>

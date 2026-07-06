@@ -157,13 +157,13 @@ export default function HistoryPage() {
             options={deviceOptions}
             value={deviceId}
             onChange={(e) => setDeviceId(e.target.value)}
-            className="border-white/[0.06] bg-white/[0.04] text-slate-300 focus-visible:ring-indigo-500/30"
+            className="border-white/[0.06] bg-slate-800 text-white [color-scheme:dark] focus-visible:ring-indigo-500/30"
           />
           <Select
             options={logTypeOptions}
             value={logType}
             onChange={(e) => setLogType(e.target.value)}
-            className="border-white/[0.06] bg-white/[0.04] text-slate-300 focus-visible:ring-indigo-500/30"
+            className="border-white/[0.06] bg-slate-800 text-white [color-scheme:dark] focus-visible:ring-indigo-500/30"
           />
           <Input
             type="date"
