@@ -128,7 +128,7 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
                 options={roleOptions}
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="border-white/[0.08] bg-white/[0.04] text-slate-300 focus-visible:ring-indigo-500/30"
+                className="border-white/[0.06] bg-slate-800 text-white [color-scheme:dark] focus-visible:ring-indigo-500/30"
               />
             </div>
             <div className="space-y-2">
@@ -137,7 +137,7 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
                 options={statusOptions}
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="border-white/[0.08] bg-white/[0.04] text-slate-300 focus-visible:ring-indigo-500/30"
+                className="border-white/[0.06] bg-slate-800 text-white [color-scheme:dark] focus-visible:ring-indigo-500/30"
               />
             </div>
           </div>
