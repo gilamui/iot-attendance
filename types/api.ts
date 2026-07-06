@@ -67,6 +67,18 @@ export interface DoorUnlockPayload {
   duration: number
 }
 
+export interface MqttConfig {
+  brokerUrl: string
+  username: string
+  password: string
+}
+
+export interface UpdateMqttConfigPayload {
+  brokerUrl: string
+  username: string
+  password: string
+}
+
 export interface MockScanPayload {
   device_id: string
   fingerprint_id: number

@@ -8,6 +8,7 @@ import {
   History,
   Users,
   Shield,
+  Radio,
   LogOut,
   Fingerprint,
   ChevronDown,
@@ -15,6 +16,7 @@ import {
   Wifi,
 } from "lucide-react"
 import { clearAuth, getStoredUser } from "@/lib/api"
+import { MqttProvider } from "@/components/mqtt-context"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +34,7 @@ const navItems = [
   { href: "/dashboard/history", label: "Sensor History", icon: History },
   { href: "/dashboard/users", label: "Users & Fingerprints", icon: Users },
   { href: "/dashboard/logs", label: "Security Logs", icon: Shield },
+  { href: "/dashboard/mqtt", label: "MQTT Telemetry", icon: Radio },
 ]
 
 function LiveClock() {
@@ -243,7 +246,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto bg-slate-950">
           <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-            {children}
+            <MqttProvider>{children}</MqttProvider>
           </div>
         </div>
       </main>

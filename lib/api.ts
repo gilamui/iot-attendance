@@ -8,6 +8,8 @@ import type {
   UpdateUserPayload,
   AttendanceLog,
   MockScanPayload,
+  MqttConfig,
+  UpdateMqttConfigPayload,
 } from "@/types/api"
 
 const api = axios.create({
@@ -132,5 +134,20 @@ export async function unlockDoor(deviceId: string): Promise<void> {
 
 export async function mockScan(payload: MockScanPayload): Promise<AttendanceLog> {
   const { data } = await api.post<AttendanceLog>("/attendance/mock-scan", payload)
+  return data
+}
+
+export async function getMqttConfig(): Promise<MqttConfig> {
+  const { data } = await api.get<MqttConfig>("/mqtt/config")
+  return data
+}
+
+export async function updateMqttConfig(payload: UpdateMqttConfigPayload): Promise<{ message: string; brokerUrl: string; username: string }> {
+  const { data } = await api.post("/mqtt/config", payload)
+  return data
+}
+
+export async function publishMqtt(topic: string, payload: string): Promise<{ success: boolean }> {
+  const { data } = await api.post<{ success: boolean }>("/mqtt/publish", { topic, payload })
   return data
 }
