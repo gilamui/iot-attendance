@@ -343,7 +343,7 @@ export default function MqttTelemetryPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => applyPreset("unlock")}
-                className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10 text-[10px]"
+                className="bg-slate-900/60 border-rose-500/20 text-rose-400 hover:bg-slate-800/50 hover:text-rose-350 text-[10px]"
               >
                 Unlock Preset
               </Button>
@@ -351,7 +351,7 @@ export default function MqttTelemetryPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => applyPreset("lock")}
-                className="border-amber-500/20 text-amber-300 hover:bg-amber-500/10 text-[10px]"
+                className="bg-slate-900/60 border-amber-500/20 text-amber-400 hover:bg-slate-800/50 hover:text-amber-350 text-[10px]"
               >
                 Lock Preset
               </Button>
@@ -359,7 +359,7 @@ export default function MqttTelemetryPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => applyPreset("scan")}
-                className="border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/10 text-[10px]"
+                className="bg-slate-900/60 border-emerald-500/20 text-emerald-400 hover:bg-slate-800/50 hover:text-emerald-350 text-[10px]"
               >
                 Mock Scan Preset
               </Button>

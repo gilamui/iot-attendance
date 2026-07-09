@@ -185,7 +185,7 @@ export default function DashboardPage() {
               ) : (
                 <Unlock className="h-4 w-4" />
               )}
-              Emergency Door Unlock
+              Door Unlock
             </Button>
             <Button
               size="lg"
@@ -198,7 +198,7 @@ export default function DashboardPage() {
               ) : (
                 <BugPlay className="h-4 w-4" />
               )}
-              Simulate Scan
+              Test Scan
             </Button>
           </div>
           <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
