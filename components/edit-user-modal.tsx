@@ -34,7 +34,11 @@ const statusOptions = [
   { value: "SUSPENDED", label: "Suspended" },
 ]
 
-export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) {
+export function EditUserModal({
+  open,
+  onOpenChange,
+  user,
+}: EditUserModalProps) {
   const queryClient = useQueryClient()
   const [fullName, setFullName] = useState("")
   const [fingerprintId, setFingerprintId] = useState("")
@@ -43,8 +47,10 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
 
   useEffect(() => {
     if (user) {
-      setFullName(user.fullName)
-      setFingerprintId(user.fingerprintId != null ? String(user.fingerprintId) : "")
+      setFullName(user.full_name)
+      setFingerprintId(
+        user.fingerprint_id != null ? String(user.fingerprint_id) : ""
+      )
       setRole(user.role)
       setStatus(user.status)
     }
@@ -54,7 +60,9 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
     mutationFn: () =>
       updateUser(user!.id, {
         full_name: fullName,
-        fingerprint_id: fingerprintId ? parseInt(fingerprintId, 10) : undefined,
+        fingerprint_id: fingerprintId
+          ? parseInt(fingerprintId, 10)
+          : undefined,
         role: role as "ADMIN" | "EMPLOYEE",
         status: status as "ACTIVE" | "SUSPENDED",
       }),
@@ -64,7 +72,7 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
       onOpenChange(false)
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to update user")
+      toast.error(err?.message || "Failed to update user")
     },
   })
 
@@ -93,7 +101,7 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
             <div>
               <DialogTitle className="text-slate-100">Edit User</DialogTitle>
               <DialogDescription className="text-slate-400">
-                Update details for {user?.fullName}
+                Update details for {user?.full_name}
               </DialogDescription>
             </div>
           </div>
@@ -101,7 +109,9 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Full Name</label>
+              <label className="text-sm font-medium text-slate-300">
+                Full Name
+              </label>
               <Input
                 placeholder="Budi Santoso"
                 value={fullName}
@@ -111,7 +121,9 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Hardware Fingerprint ID (1-127)</label>
+              <label className="text-sm font-medium text-slate-300">
+                Hardware Fingerprint ID (1-127)
+              </label>
               <Input
                 type="number"
                 min={1}
@@ -123,7 +135,9 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Role</label>
+              <label className="text-sm font-medium text-slate-300">
+                Role
+              </label>
               <Select
                 options={roleOptions}
                 value={role}
@@ -132,7 +146,9 @@ export function EditUserModal({ open, onOpenChange, user }: EditUserModalProps) 
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Status</label>
+              <label className="text-sm font-medium text-slate-300">
+                Status
+              </label>
               <Select
                 options={statusOptions}
                 value={status}

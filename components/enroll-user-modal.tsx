@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Fingerprint } from "lucide-react"
 
 interface EnrollUserModalProps {
   open: boolean
@@ -29,8 +28,8 @@ export function EnrollUserModal({ open, onOpenChange }: EnrollUserModalProps) {
   const mutation = useMutation({
     mutationFn: () =>
       createUser({
-        fingerprint_id: parseInt(fingerprintId, 10),
         full_name: fullName,
+        fingerprint_id: parseInt(fingerprintId, 10),
         role: "EMPLOYEE",
         status: "ACTIVE",
       }),
@@ -41,7 +40,7 @@ export function EnrollUserModal({ open, onOpenChange }: EnrollUserModalProps) {
       resetForm()
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to enroll user")
+      toast.error(err?.message || "Failed to enroll user")
     },
   })
 
@@ -68,13 +67,15 @@ export function EnrollUserModal({ open, onOpenChange }: EnrollUserModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10">
-              <Fingerprint className="h-5 w-5 text-indigo-400" />
+          <div className="flex items-start gap-3">
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 text-primary shrink-0">
+              <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>person_add</span>
             </div>
-            <div>
-              <DialogTitle className="text-slate-100">Enroll New Fingerprint</DialogTitle>
-              <DialogDescription className="text-slate-400">
+            <div className="min-w-0">
+              <DialogTitle className="text-on-surface font-headline-md text-headline-md">
+                Enroll New Fingerprint
+              </DialogTitle>
+              <DialogDescription className="text-on-surface-variant font-body-sm text-body-sm mt-1">
                 Assign a hardware fingerprint slot (1-127) to an employee
               </DialogDescription>
             </div>
@@ -83,17 +84,21 @@ export function EnrollUserModal({ open, onOpenChange }: EnrollUserModalProps) {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Full Name</label>
+              <label className="font-label-md text-label-md text-on-surface-variant">
+                Full Name
+              </label>
               <Input
                 placeholder="Budi Santoso"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                className="border-white/[0.08] bg-white/[0.04] text-white placeholder:text-slate-500 focus-visible:ring-indigo-500/30"
+                className="h-10 border-white/10 bg-surface-container text-on-surface placeholder:text-on-surface-variant focus-visible:ring-primary/30"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Hardware Fingerprint ID (1-127)</label>
+              <label className="font-label-md text-label-md text-on-surface-variant">
+                Hardware Fingerprint ID (1-127)
+              </label>
               <Input
                 type="number"
                 min={1}
@@ -102,28 +107,30 @@ export function EnrollUserModal({ open, onOpenChange }: EnrollUserModalProps) {
                 value={fingerprintId}
                 onChange={(e) => setFingerprintId(e.target.value)}
                 required
-                className="border-white/[0.08] bg-white/[0.04] text-white placeholder:text-slate-500 focus-visible:ring-indigo-500/30"
+                className="h-10 border-white/10 bg-surface-container text-on-surface placeholder:text-on-surface-variant focus-visible:ring-primary/30"
               />
             </div>
           </div>
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row gap-2">
             <Button
               type="button"
-              variant="destructive"
+              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={mutation.isPending}
-              className="rounded-xl"
+              className="rounded-xl border-white/10 text-on-surface-variant hover:bg-white/5 font-label-md"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={mutation.isPending}
-              className="rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-400 hover:to-indigo-500"
+              className="rounded-xl bg-primary text-on-primary hover:bg-primary/80 font-label-md"
             >
               {mutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
+                <span className="material-symbols-outlined text-[16px] mr-1 animate-spin">progress_activity</span>
+              ) : (
+                <span className="material-symbols-outlined text-[16px] mr-1">person_add</span>
+              )}
               Enroll User
             </Button>
           </DialogFooter>

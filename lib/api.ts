@@ -1,153 +1,126 @@
-import axios from "axios"
+import { supabase } from "./supabase"
 import type {
-  LoginPayload,
-  LoginResponse,
-  RegisterPayload,
   User,
   CreateUserPayload,
   UpdateUserPayload,
   AttendanceLog,
-  MockScanPayload,
-  MqttConfig,
-  UpdateMqttConfigPayload,
 } from "@/types/api"
 
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
-  headers: { "Content-Type": "application/json" },
-})
-
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("access_token")
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-  }
-  return config
-})
-
-api.interceptors.response.use(
-  (res) => res,
-  (error) => {
-    if (
-      error.response?.status === 401 &&
-      typeof window !== "undefined" &&
-      !error.config.url?.includes("/auth/")
-    ) {
-      clearAuth()
-      window.location.href = "/login"
-    }
-    return Promise.reject(error)
-  }
-)
-
-function setCookie(name: string, value: string, days: number = 1) {
-  const expires = new Date(Date.now() + days * 864e5).toUTCString()
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
-}
-
-function removeCookie(name: string) {
-  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-}
-
-export function setAuthToken(token: string) {
-  localStorage.setItem("access_token", token)
-  setCookie("access_token", token)
-}
-
-export function getAuthToken(): string | null {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("access_token")
-  }
-  return null
-}
-
-export function clearAuth() {
-  localStorage.removeItem("access_token")
-  localStorage.removeItem("user")
-  removeCookie("access_token")
-}
-
-export function setStoredUser(user: any) {
-  localStorage.setItem("user", JSON.stringify(user))
-}
-
 export function getStoredUser(): any | null {
-  if (typeof window !== "undefined") {
-    const raw = localStorage.getItem("user")
-    if (raw) {
-      try {
-        return JSON.parse(raw)
-      } catch {
-        return null
-      }
-    }
+  if (typeof window === "undefined") return null
+  const raw = localStorage.getItem("user")
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
   }
-  return null
 }
 
-export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>("/auth/login", payload)
-  setAuthToken(data.access_token)
-  setStoredUser(data.user)
-  return data
+export async function login(payload: { username: string; password: string }) {
+  const { data, error } = await supabase.rpc("authenticate_user", {
+    p_username: payload.username,
+    p_password: payload.password,
+  })
+
+  if (error) throw new Error("Invalid credentials")
+  if (!data || data.length === 0) throw new Error("Invalid credentials")
+
+  const user = {
+    id: data[0].id,
+    fullName: data[0].full_name,
+    role: data[0].role,
+    username: data[0].username,
+    fingerprintId: data[0].fingerprint_id,
+  }
+
+  const json = JSON.stringify(user)
+  localStorage.setItem("user", json)
+  document.cookie = `user=${encodeURIComponent(json)}; path=/; max-age=86400; SameSite=Lax`
+  return { user }
 }
 
-export async function register(payload: RegisterPayload): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>("/auth/register", payload)
-  return data
+export function logout() {
+  localStorage.removeItem("user")
+  document.cookie = "user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+  window.location.href = "/login"
 }
 
 export async function getUsers(): Promise<User[]> {
-  const res = await api.get("/users")
-  return res.data.data
-}
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .order("created_at", { ascending: false })
 
-export async function getUser(id: string): Promise<User> {
-  const res = await api.get(`/users/${id}`)
-  return res.data.data
+  if (error) throw error
+  return data || []
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<User> {
-  const res = await api.post("/users", payload)
-  return res.data.data
+  const { data, error } = await supabase.rpc("create_user_with_password", {
+    p_username: payload.username || `user_${Date.now()}`,
+    p_password: "password123",
+    p_full_name: payload.full_name,
+    p_fingerprint_id: payload.fingerprint_id,
+    p_role: payload.role,
+    p_status: payload.status,
+  })
+
+  if (error) throw error
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", data)
+    .single()
+
+  return user!
 }
 
-export async function updateUser(id: string, payload: UpdateUserPayload): Promise<User> {
-  const res = await api.patch(`/users/${id}`, payload)
-  return res.data.data
+export async function updateUser(
+  id: string,
+  payload: UpdateUserPayload
+): Promise<User> {
+  const { data, error } = await supabase
+    .from("users")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  await api.delete(`/users/${id}`)
+  const { error } = await supabase.from("users").delete().eq("id", id)
+  if (error) throw error
 }
 
 export async function getAttendance(): Promise<AttendanceLog[]> {
-  const { data } = await api.get<AttendanceLog[]>("/attendance")
-  return data
-}
+  const { data, error } = await supabase
+    .from("attendance_logs")
+    .select("*")
+    .order("timestamp", { ascending: false })
+    .limit(100)
 
-export async function unlockDoor(deviceId: string): Promise<void> {
-  await api.post(`/attendance/door/unlock/${deviceId}`)
-}
+  if (error) throw error
 
-export async function mockScan(payload: MockScanPayload): Promise<AttendanceLog> {
-  const { data } = await api.post<AttendanceLog>("/attendance/mock-scan", payload)
-  return data
-}
+  const logs = data || []
+  if (logs.length === 0) return logs
 
-export async function getMqttConfig(): Promise<MqttConfig> {
-  const { data } = await api.get<MqttConfig>("/mqtt/config")
-  return data
-}
+  const fpIds = [...new Set(logs.map((l) => l.fingerprint_id).filter(Boolean))]
+  if (fpIds.length === 0) return logs
 
-export async function updateMqttConfig(payload: UpdateMqttConfigPayload): Promise<{ message: string; brokerUrl: string; username: string }> {
-  const { data } = await api.post("/mqtt/config", payload)
-  return data
-}
+  const { data: users } = await supabase
+    .from("users")
+    .select("full_name, role, status, fingerprint_id")
+    .in("fingerprint_id", fpIds)
 
-export async function publishMqtt(topic: string, payload: string): Promise<{ success: boolean }> {
-  const { data } = await api.post<{ success: boolean }>("/mqtt/publish", { topic, payload })
-  return data
+  const userMap = new Map((users || []).map((u) => [u.fingerprint_id, u]))
+
+  return logs.map((log) => ({
+    ...log,
+    user: userMap.get(log.fingerprint_id) || null,
+  }))
 }

@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Plus, Trash2, Pencil, Users, Fingerprint } from "lucide-react"
 import { toast } from "sonner"
 import { getUsers, deleteUser } from "@/lib/api"
-import { Badge } from "@/components/ui/badge"
+import { useMqtt } from "@/components/mqtt-provider"
+import { getInitials } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -21,105 +21,111 @@ import { EditUserModal } from "@/components/edit-user-modal"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { User } from "@/types/api"
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-const roleColors: Record<string, string> = {
-  ADMIN: "bg-violet-500/10 text-violet-300 border-violet-500/20",
-  EMPLOYEE: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
-}
-
 export default function UsersPage() {
   const queryClient = useQueryClient()
   const [enrollOpen, setEnrollOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; fullName: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string
+    full_name: string
+  } | null>(null)
   const [editTarget, setEditTarget] = useState<User | null>(null)
+  const { publishCommand, connected } = useMqtt()
 
-  const { data: users, isLoading, isError } = useQuery({
+  const {
+    data: users,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["users"],
     queryFn: getUsers,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteUser(id),
+    mutationFn: async (user: { id: string; fingerprint_id: number | null }) => {
+      await deleteUser(user.id)
+      if (user.fingerprint_id != null && connected) {
+        publishCommand("office-01", {
+          action: "delete_fingerprint",
+          fingerprint_id: user.fingerprint_id,
+        })
+      }
+    },
     onSuccess: () => {
-      toast.success("User access revoked")
+      toast.success("User access revoked and fingerprint slot freed")
       queryClient.invalidateQueries({ queryKey: ["users"] })
       setDeleteTarget(null)
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to revoke access")
+      toast.error(err?.message || "Failed to revoke access")
     },
   })
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Users & Fingerprints
-          </h1>
-          <p className="text-sm text-slate-400">
-            Manage enrolled employees and their hardware fingerprint slots
-          </p>
-        </div>
+    <>
+      {/* Page Header */}
+      <div className="pt-8 mb-4">
+        <h1 className="font-display-lg text-display-lg text-on-surface lg:text-[48px] text-[32px] mb-2 tracking-tight">
+          Users & Fingerprints
+        </h1>
+        <p className="font-body-lg text-body-lg text-on-surface-variant">
+          Manage enrolled employees and their hardware fingerprint slots
+        </p>
+      </div>
+
+      {/* Enroll Button */}
+      <div className="flex justify-end mb-6">
         <Button
           onClick={() => setEnrollOpen(true)}
-          className="rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-400 hover:to-indigo-500"
+          className="rounded-xl bg-primary text-on-primary hover:bg-primary/80 font-label-md"
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <span className="material-symbols-outlined text-[16px] mr-1">person_add</span>
           Enroll New
         </Button>
       </div>
 
-      {/* Directory Card */}
-      <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-xl shadow-lg shadow-black/20 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2 text-sm text-slate-200">
-            <Users className="h-4 w-4 text-indigo-400" />
-            <span className="font-medium">Employee Directory</span>
+      {/* Users Table Card */}
+      <div className="glass-card rounded-xl overflow-hidden">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-surface/30">
+          <div className="flex items-center gap-3">
+            <h3 className="font-headline-md text-headline-md text-on-surface">Employee Directory</h3>
             {users && (
-              <Badge variant="outline" className="ml-1 text-[10px] border-white/[0.06] text-slate-400">
+              <span className="font-label-md text-label-md text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
                 {users.length} total
-              </Badge>
+              </span>
             )}
           </div>
-          <Fingerprint className="h-4 w-4 text-slate-500" />
+          <span className="material-symbols-outlined text-[20px] text-on-surface-variant">
+            fingerprint
+          </span>
         </div>
 
         {isLoading ? (
           <div className="space-y-3 p-6">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full bg-white/[0.04]" />
+              <Skeleton key={i} className="h-12 w-full bg-surface-container" />
             ))}
           </div>
         ) : isError ? (
-          <div className="p-6 text-center text-rose-400">
-            Failed to load users. Check API connection.
+          <div className="p-6 text-center text-error">
+            Failed to load users. Check Supabase connection.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-white/[0.06] hover:bg-transparent">
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Username</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Full Name</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Fingerprint ID</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Role</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="w-[120px] text-slate-400 font-medium text-xs uppercase tracking-wider">Actions</TableHead>
+                <TableRow className="border-white/10 hover:bg-transparent">
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Username</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Full Name</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Fingerprint ID</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Role</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Status</TableHead>
+                  <TableHead className="w-[120px] font-label-md text-xs text-on-surface-variant tracking-wider">Actions</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="font-body-sm divide-y divide-white/5">
                 {users?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-on-surface-variant py-8">
                       No users enrolled yet
                     </TableCell>
                   </TableRow>
@@ -127,42 +133,43 @@ export default function UsersPage() {
                   users?.map((user) => (
                     <TableRow
                       key={user.id}
-                      className="border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                      className="hover:bg-white/5 transition-colors"
                     >
-                      <TableCell className="font-mono text-xs text-slate-400">
+                      <TableCell className="font-mono-sm text-xs text-on-surface-variant">
                         {user.username || "—"}
                       </TableCell>
-                      <TableCell className="font-medium text-slate-200">
+                      <TableCell className="text-on-surface font-medium">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-xs font-semibold text-indigo-300">
-                            {getInitials(user.fullName)}
+                          <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center text-primary font-semibold text-xs">
+                            {getInitials(user.full_name)}
                           </div>
-                          {user.fullName}
+                          {user.full_name}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className="font-mono text-[10px] border-white/[0.06] bg-white/[0.04] text-slate-300"
-                        >
-                          {user.fingerprintId != null ? `Slot #${user.fingerprintId}` : "Unassigned"}
-                        </Badge>
+                        <span className="inline-flex items-center font-mono-sm text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded border border-white/10">
+                          {user.fingerprint_id != null
+                            ? `Slot #${user.fingerprint_id}`
+                            : "Unassigned"}
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-medium ${roleColors[user.role] || "border-white/[0.06] text-slate-400"}`}
-                        >
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${
+                          user.role === "ADMIN"
+                            ? "bg-tertiary-container/10 text-tertiary-container border-tertiary-container/20"
+                            : "bg-primary/10 text-primary border-primary/20"
+                        }`}>
                           {user.role}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={user.status === "ACTIVE" ? "success" : "destructive"}
-                          className="text-[10px] px-2 py-0.5"
-                        >
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${
+                          user.status === "ACTIVE"
+                            ? "bg-secondary/10 text-secondary border-secondary/20"
+                            : "bg-error/10 text-error border-error/20"
+                        }`}>
                           {user.status}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -170,19 +177,22 @@ export default function UsersPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setEditTarget(user)}
-                            className="text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                            className="text-on-surface-variant hover:text-primary hover:bg-primary/10"
                           >
-                            <Pencil className="h-4 w-4" />
+                            <span className="material-symbols-outlined text-[16px]">edit</span>
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              setDeleteTarget({ id: user.id, fullName: user.fullName })
+                              setDeleteTarget({
+                                id: user.id,
+                                full_name: user.full_name,
+                              })
                             }
-                            className="text-slate-400 hover:text-rose-300 hover:bg-rose-500/10"
+                            className="text-on-surface-variant hover:text-error hover:bg-error/10"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -205,12 +215,20 @@ export default function UsersPage() {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Revoke Access"
-        description={`Are you sure you want to remove ${deleteTarget?.fullName}? This will free up their fingerprint slot.`}
+        description={`Are you sure you want to remove ${deleteTarget?.full_name}? This will free up their fingerprint slot.`}
         confirmLabel="Revoke Access"
         destructive
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onConfirm={() => {
+          const user = users?.find((u) => u.id === deleteTarget?.id)
+          if (deleteTarget && user) {
+            deleteMutation.mutate({
+              id: deleteTarget.id,
+              fingerprint_id: user.fingerprint_id,
+            })
+          }
+        }}
         loading={deleteMutation.isPending}
       />
-    </div>
+    </>
   )
 }

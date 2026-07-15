@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Fingerprint, Loader2, Shield, ChevronRight } from "lucide-react"
+import { Fingerprint, Loader2, Shield } from "lucide-react"
 import { toast } from "sonner"
 import { login } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ShaderBackground } from "@/components/shader-background"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -19,31 +20,24 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await login({ username, password })
-      if (res.user.role !== "ADMIN") {
+      if (!res.user || res.user.role !== "ADMIN") {
         toast.error("Access Denied: Admin privileges required")
         return
       }
       toast.success("Welcome back, " + res.user.fullName)
       router.push("/dashboard")
     } catch (err: any) {
-      const msg = err?.response?.data?.message || "Invalid credentials"
-      toast.error(msg)
+      toast.error(err.message || "Invalid credentials")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-950">
-      <div className="absolute inset-0 bg-grid animate-drift" />
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/0 via-indigo-950/20 to-slate-950/0" />
-
-      {/* Floating gradient orbs */}
-      <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-indigo-500/10 blur-[120px]" />
-      <div className="absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-cyan-500/8 blur-[100px]" />
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+      <ShaderBackground />
 
       <div className="relative w-full max-w-md px-4">
-        {/* Logo + Badge */}
         <div className="text-center mb-8">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg shadow-indigo-500/25">
             <Fingerprint className="h-8 w-8 text-white" />
@@ -56,7 +50,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Glass Card */}
         <div className="rounded-2xl border border-white/[0.06] bg-slate-900/70 backdrop-blur-xl p-8 shadow-2xl shadow-black/40">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
@@ -107,9 +100,8 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Footer */}
         <p className="mt-6 text-center text-xs text-slate-600">
-          IoT Fingerprint Attendance System &middot; v1.0
+          IoT Fingerprint Attendance System &middot; v2.0
         </p>
       </div>
     </div>

@@ -1,17 +1,8 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import {
-  Shield,
-  LogIn,
-  AlertTriangle,
-  Unlock,
-  Wifi,
-  Fingerprint,
-  Scan,
-} from "lucide-react"
 import { getAttendance } from "@/lib/api"
-import { Badge } from "@/components/ui/badge"
+import { getInitials } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -22,235 +13,219 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-const eventConfig: Record<string, { icon: React.ElementType; label: string; badge: "success" | "warning" | "destructive" | "secondary"; color: string; glow: string }> = {
+const eventConfig: Record<
+  string,
+  { label: string; icon: string; colorClass: string; glowClass: string }
+> = {
   CHECK_IN: {
-    icon: LogIn,
     label: "CHECK IN",
-    badge: "success",
-    color: "text-emerald-400",
-    glow: "shadow-emerald-500/10",
+    icon: "login",
+    colorClass: "bg-secondary/10 text-secondary border-secondary/20",
+    glowClass: "",
   },
   CHECK_OUT: {
-    icon: AlertTriangle,
     label: "CHECK OUT",
-    badge: "warning",
-    color: "text-amber-400",
-    glow: "shadow-amber-500/10",
+    icon: "logout",
+    colorClass: "bg-tertiary-container/10 text-tertiary-container border-tertiary-container/20",
+    glowClass: "",
   },
   DOOR_UNLOCK: {
-    icon: Unlock,
     label: "DOOR UNLOCK",
-    badge: "destructive",
-    color: "text-rose-400",
-    glow: "shadow-rose-500/10",
+    icon: "lock_open",
+    colorClass: "bg-error/10 text-error border-error/20",
+    glowClass: "",
   },
 }
 
 function getEventConfig(event: string) {
-  return eventConfig[event] || {
-    icon: Scan,
-    label: event,
-    badge: "secondary" as const,
-    color: "text-slate-400",
-    glow: "",
-  }
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
+  return (
+    eventConfig[event] || {
+      label: event,
+      icon: "radio_button_checked",
+      colorClass: "bg-surface-container text-on-surface-variant border-white/10",
+      glowClass: "",
+    }
+  )
 }
 
 export default function LogsPage() {
-  const { data: logs, isLoading, isError } = useQuery({
+  const {
+    data: logs,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["attendance"],
     queryFn: getAttendance,
     refetchInterval: 10000,
   })
 
-  const todayLogs = logs?.filter(
-    (l) => new Date(l.timestamp).toDateString() === new Date().toDateString()
-  ) || []
+  const todayLogs =
+    logs?.filter(
+      (l) => new Date(l.timestamp).toDateString() === new Date().toDateString()
+    ) || []
 
   const statCards = [
     {
       label: "Today Check-Ins",
-      value: todayLogs.filter((l) => l.logType === "CHECK_IN").length,
-      icon: LogIn,
-      color: "from-emerald-500/20 to-emerald-500/5 border-emerald-500/20",
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-400",
-      glow: "glow-emerald",
+      value: todayLogs.filter((l) => l.log_type === "CHECK_IN").length,
+      icon: "login",
+      color: "bg-secondary/10 border-secondary/20 text-secondary",
+      orbColor: "bg-secondary/10",
     },
     {
       label: "Today Check-Outs",
-      value: todayLogs.filter((l) => l.logType === "CHECK_OUT").length,
-      icon: AlertTriangle,
-      color: "from-amber-500/20 to-amber-500/5 border-amber-500/20",
-      iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-400",
-      glow: "",
+      value: todayLogs.filter((l) => l.log_type === "CHECK_OUT").length,
+      icon: "logout",
+      color: "bg-tertiary-container/10 border-tertiary-container/20 text-tertiary-container",
+      orbColor: "bg-tertiary-container/10",
     },
     {
       label: "Active Devices",
-      value: new Set(logs?.map((l) => l.deviceId)).size || 0,
-      icon: Wifi,
-      color: "from-cyan-500/20 to-cyan-500/5 border-cyan-500/20",
-      iconBg: "bg-cyan-500/10",
-      iconColor: "text-cyan-400",
-      glow: "",
+      value: new Set(logs?.map((l) => l.device_id)).size || 0,
+      icon: "cell_tower",
+      color: "bg-primary/10 border-primary/20 text-primary",
+      orbColor: "bg-primary/10",
     },
     {
       label: "Total Records",
       value: logs?.length || 0,
-      icon: Shield,
-      color: "from-violet-500/20 to-violet-500/5 border-violet-500/20",
-      iconBg: "bg-violet-500/10",
-      iconColor: "text-violet-400",
-      glow: "",
+      icon: "shield",
+      color: "bg-tertiary-container/10 border-tertiary-container/20 text-tertiary-container",
+      orbColor: "bg-tertiary-container/10",
     },
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <>
+      {/* Page Header */}
+      <div className="pt-8 mb-10 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h1 className="font-display-lg text-display-lg text-on-surface lg:text-[48px] text-[32px] mb-2 tracking-tight">
             Security & System Logs
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="font-body-lg text-body-lg text-on-surface-variant">
             Audit trail for authentication events, door unlocks, and MQTT connectivity
           </p>
         </div>
-        <Badge
-          variant="outline"
-          className="gap-1.5 border-violet-500/20 text-violet-300 bg-violet-500/5"
-        >
-          <Shield className="h-3 w-3" />
-          Audit Trail
-        </Badge>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {statCards.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <div
-              key={stat.label}
-              className={`rounded-2xl border bg-gradient-to-br ${stat.color} bg-slate-900/40 backdrop-blur-xl p-5 shadow-lg shadow-black/20 transition-all duration-200 hover:brightness-110 ${stat.glow}`}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    {stat.label}
-                  </p>
-                  <p className="text-3xl font-bold text-white tracking-tight mt-1.5">
-                    {stat.value}
-                  </p>
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.iconBg}`}>
-                  <Icon className={`h-5 w-5 ${stat.iconColor}`} />
-                </div>
+      <div className="grid gap-6 md:grid-cols-4 mb-6">
+        {statCards.map((stat) => (
+          <div
+            key={stat.label}
+            className="glass-card rounded-xl p-6 flex flex-col justify-between group hover:border-primary/30 transition-colors relative overflow-hidden"
+          >
+            <div className={`absolute -right-10 -top-10 w-32 h-32 ${stat.orbColor} rounded-full blur-3xl group-hover:opacity-75 transition-all duration-500`} />
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <div>
+                <p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-1">
+                  {stat.label}
+                </p>
+                <h2 className="font-headline-lg text-headline-lg text-on-surface">
+                  {stat.value}
+                </h2>
+              </div>
+              <div className={`p-3 rounded-lg border ${stat.color}`}>
+                <span className="material-symbols-outlined text-[24px]">{stat.icon}</span>
               </div>
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
 
       {/* Event Log Table */}
-      <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-xl shadow-lg shadow-black/20 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2 text-sm text-slate-200">
-            <Fingerprint className="h-4 w-4 text-indigo-400" />
-            <span className="font-medium">Attendance Event Log</span>
+      <div className="glass-card rounded-xl overflow-hidden">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-surface/30">
+          <div className="flex items-center gap-3">
+            <h3 className="font-headline-md text-headline-md text-on-surface">Attendance Event Log</h3>
+            <span className="font-label-md text-label-md text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
+              Auto-refresh 10s
+            </span>
           </div>
-          <Badge variant="outline" className="text-[10px] border-white/[0.06] text-slate-400">
-            Auto-refresh 10s
-          </Badge>
+          <span className="material-symbols-outlined text-[20px] text-on-surface-variant">
+            fingerprint
+          </span>
         </div>
 
         {isLoading ? (
           <div className="space-y-3 p-6">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full bg-white/[0.04]" />
+              <Skeleton key={i} className="h-10 w-full bg-surface-container" />
             ))}
           </div>
         ) : isError ? (
-          <div className="p-6 text-center text-rose-400">
+          <div className="p-6 text-center text-error">
             Failed to load logs. Check API connection.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-white/[0.06] hover:bg-transparent">
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Event</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Employee</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Device</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Confidence</TableHead>
-                  <TableHead className="text-slate-400 font-medium text-xs uppercase tracking-wider">Timestamp</TableHead>
+                <TableRow className="border-white/10 hover:bg-transparent">
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Event</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Employee</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Device</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Confidence</TableHead>
+                  <TableHead className="font-label-md text-xs text-on-surface-variant tracking-wider">Timestamp</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="font-body-sm divide-y divide-white/5">
                 {logs?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={5} className="text-center text-on-surface-variant py-8">
                       No event logs recorded yet
                     </TableCell>
                   </TableRow>
                 ) : (
                   logs?.slice(0, 100).map((log) => {
-                    const config = getEventConfig(log.logType)
-                    const Icon = config.icon
+                    const config = getEventConfig(log.log_type)
                     return (
                       <TableRow
                         key={log.id}
-                        className="border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                        className="hover:bg-white/5 transition-colors"
                       >
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${config.color === "text-emerald-400" ? "bg-emerald-500/10" : config.color === "text-amber-400" ? "bg-amber-500/10" : config.color === "text-rose-400" ? "bg-rose-500/10" : "bg-slate-500/10"}`}>
-                              <Icon className={`h-3.5 w-3.5 ${config.color}`} />
+                            <div className={`p-1.5 rounded-lg border ${config.colorClass}`}>
+                              <span className="material-symbols-outlined text-[14px]">{config.icon}</span>
                             </div>
-                            <Badge
-                              variant={config.badge}
-                              className="text-[10px] px-2 py-0.5 font-medium"
-                            >
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${config.colorClass}`}>
                               {config.label}
-                            </Badge>
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 text-xs font-medium text-slate-200">
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-500/10 text-[9px] font-semibold text-slate-400">
-                              {log.user?.fullName ? getInitials(log.user.fullName) : "#"}
+                          <div className="flex items-center gap-2 text-xs font-body-sm text-on-surface">
+                            <div className="h-6 w-6 rounded-full bg-surface-container-high border border-white/10 overflow-hidden flex items-center justify-center text-on-surface-variant font-semibold text-[9px]">
+                              {log.user?.full_name ? getInitials(log.user.full_name) : "#"}
                             </div>
-                            {log.user?.fullName || `FP#${log.fingerprintId}`}
+                            {log.user?.full_name || `FP#${log.fingerprint_id}`}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="outline"
-                            className="font-mono text-[10px] border-white/[0.06] text-slate-400"
-                          >
-                            {log.deviceId}
-                          </Badge>
+                          <span className="inline-flex items-center font-mono-sm text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded border border-white/10">
+                            {log.device_id}
+                          </span>
                         </TableCell>
                         <TableCell className="text-xs">
                           {log.confidence != null ? (
-                            <span className={`font-mono ${log.confidence >= 90 ? "text-emerald-400" : "text-amber-400"}`}>
-                              {log.confidence}%
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`font-mono-sm ${log.confidence >= 60 ? "text-secondary" : "text-error"}`}>
+                                {log.confidence}%
+                              </span>
+                              <div className="w-16 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${log.confidence >= 60 ? "bg-secondary" : "bg-error"}`}
+                                  style={{ width: `${log.confidence}%` }}
+                                />
+                              </div>
+                            </div>
                           ) : (
-                            <span className="text-slate-500">-</span>
+                            <span className="text-on-surface-variant">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs text-slate-500 whitespace-nowrap font-mono">
+                        <TableCell className="text-xs text-on-surface-variant whitespace-nowrap font-mono-sm">
                           {new Date(log.timestamp).toLocaleString()}
                         </TableCell>
                       </TableRow>
@@ -262,6 +237,6 @@ export default function LogsPage() {
           </div>
         )}
       </div>
-    </div>
+    </>
   )
 }
