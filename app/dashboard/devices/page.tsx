@@ -189,6 +189,9 @@ function DeviceCard({
   )
 }
 
+// ponytail: survives remounts within page session. upgrade: localStorage if multi-tab needed
+const handledEnrollments = new Set<number>()
+
 export default function DevicesPage() {
   const { devices, connected, enrollmentEvents } = useMqtt()
   const deviceIds = Object.keys(devices)
@@ -199,7 +202,7 @@ export default function DevicesPage() {
 
   useEffect(() => {
     const completed = Object.entries(enrollmentEvents).find(
-      ([, event]) => event.status === "completed" && event.fingerprint_id
+      ([, event]) => event.status === "completed" && event.fingerprint_id && !handledEnrollments.has(event.fingerprint_id)
     )
     if (completed) {
       const [, event] = completed
@@ -251,7 +254,10 @@ export default function DevicesPage() {
       )}
       <EnrollmentLinkModal
         open={linkModal.open}
-        onOpenChange={(open) => setLinkModal((prev) => ({ ...prev, open }))}
+        onOpenChange={(open) => {
+          if (!open) handledEnrollments.add(linkModal.fingerprintId)
+          setLinkModal((prev) => ({ ...prev, open }))
+        }}
         fingerprintId={linkModal.fingerprintId}
       />
     </>
