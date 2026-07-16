@@ -23,6 +23,16 @@ function DeviceCard({
 }) {
   const { publishCommand } = useMqtt()
   const [unlocking, setUnlocking] = useState(false)
+  const [now, setNow] = useState(Date.now())
+
+  // ponytail: re-render every 10s to detect stale lastSeen. upgrade: MQTT LWT
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 10000)
+    return () => clearInterval(id)
+  }, [])
+
+  const isStale = !status?.lastSeen || (now - new Date(status.lastSeen).getTime() > 15000)
+  const isOnline = !!(status?.online && !isStale)
 
   function handleUnlock() {
     setUnlocking(true)
@@ -37,7 +47,7 @@ function DeviceCard({
         <div className="flex items-center gap-3">
           <div
             className={`p-3 rounded-lg border ${
-              status?.online
+              isOnline
                 ? "bg-secondary/10 border-secondary/20 text-secondary"
                 : "bg-error/10 border-error/20 text-error"
             }`}
@@ -46,7 +56,7 @@ function DeviceCard({
               className="material-symbols-outlined text-[24px]"
               style={{ fontVariationSettings: "'FILL' 1" }}
             >
-              {status?.online ? "door_open" : "door_front"}
+              {isOnline ? "door_open" : "door_front"}
             </span>
           </div>
           <div>
@@ -56,15 +66,15 @@ function DeviceCard({
         </div>
         <span
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${
-            status?.online
+            isOnline
               ? "bg-secondary/10 text-secondary border-secondary/20"
               : "bg-error/10 text-error border-error/20"
           }`}
         >
           <span className="material-symbols-outlined text-[14px]">
-            {status?.online ? "wifi" : "wifi_off"}
+            {isOnline ? "wifi" : "wifi_off"}
           </span>
-          {status?.online ? "Online" : "Offline"}
+          {isOnline ? "Online" : "Offline"}
         </span>
       </div>
 
