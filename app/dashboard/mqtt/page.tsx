@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -25,21 +25,23 @@ export default function MqttTelemetryPage() {
   const [fpId, setFpId] = useState("")
   const [sent, setSent] = useState(false)
   const queryClient = useQueryClient()
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingDeleteRef = useRef<{ deviceId: string; fpNum: number } | null>(null)
 
-  async function handleSend() {
-    const cmd: { action: string; fingerprint_id?: number } = {
-      action: commandAction,
-    }
-    if (
-      (commandAction === "enroll_start" || commandAction === "delete_fingerprint") &&
-      fpId
-    ) {
-      cmd.fingerprint_id = parseInt(fpId, 10)
-    }
-    publishCommand(targetDevice, cmd as any)
+  useEffect(() => {
+    const latestEvent = enrollmentEvents[targetDevice]
+    if (!latestEvent || !pendingDeleteRef.current) return
+    if (latestEvent.status !== "deleted") return
+    if (latestEvent.fingerprint_id !== pendingDeleteRef.current.fpNum) return
 
-    if (commandAction === "delete_fingerprint" && fpId) {
-      const fpNum = parseInt(fpId, 10)
+    const { fpNum } = pendingDeleteRef.current
+    pendingDeleteRef.current = null
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current)
+      deleteTimeoutRef.current = null
+    }
+
+    async function unlinkUser() {
       const { error } = await supabase
         .from("users")
         .update({ fingerprint_id: null })
@@ -50,6 +52,39 @@ export default function MqttTelemetryPage() {
       } else {
         toast.warning("Deleted from device but Supabase unlink failed")
       }
+    }
+    unlinkUser()
+  }, [enrollmentEvents, targetDevice, queryClient])
+
+  function handleSend() {
+    const cmd: { action: string; fingerprint_id?: number } = {
+      action: commandAction,
+    }
+
+    if (commandAction === "delete_fingerprint") {
+      const fpNum = parseInt(fpId, 10)
+      if (!fpId || isNaN(fpNum) || fpNum < 1 || fpNum > 127) {
+        toast.error("Enter a valid fingerprint ID (1-127)")
+        return
+      }
+      cmd.fingerprint_id = fpNum
+      publishCommand(targetDevice, cmd as any)
+      toast.info(`Deleting fingerprint slot ${fpNum}...`)
+      pendingDeleteRef.current = { deviceId: targetDevice, fpNum }
+      deleteTimeoutRef.current = setTimeout(() => {
+        if (pendingDeleteRef.current) {
+          pendingDeleteRef.current = null
+          toast.error("Device did not respond — check if device is online")
+        }
+      }, 10000)
+    } else if (
+      commandAction === "enroll_start" &&
+      fpId
+    ) {
+      cmd.fingerprint_id = parseInt(fpId, 10)
+      publishCommand(targetDevice, cmd as any)
+    } else {
+      publishCommand(targetDevice, cmd as any)
     }
 
     setSent(true)
