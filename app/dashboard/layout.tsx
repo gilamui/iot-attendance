@@ -6,7 +6,6 @@ import { useEffect, useState } from "react"
 import { logout, getStoredUser } from "@/lib/api"
 import { MqttProvider } from "@/components/mqtt-provider"
 import { useMqtt } from "@/components/mqtt-provider"
-import { MqttSupabaseBridge } from "@/components/mqtt-supabase-bridge"
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: "dashboard", mobileIcon: "dashboard" },
@@ -74,7 +73,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <MqttProvider>
-      <MqttSupabaseBridge />
       <div className="min-h-screen bg-surface text-on-background">
         {/* Top Navigation Bar */}
         <nav className="bg-surface/50 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
