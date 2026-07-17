@@ -4,15 +4,8 @@ import { useEffect, useState } from "react"
 import { useMqtt } from "@/components/mqtt-provider"
 import { EnrollmentLinkModal } from "@/components/enrollment-link-modal"
 import { Button } from "@/components/ui/button"
-import { timeAgo } from "@/lib/utils"
+import { timeAgo, formatUptime } from "@/lib/utils"
 import type { DeviceStatus } from "@/types/mqtt"
-
-function formatUptime(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
-}
 
 function DeviceCard({
   id,
@@ -31,7 +24,7 @@ function DeviceCard({
     return () => clearInterval(id)
   }, [])
 
-  const isStale = !status?.lastSeen || (now - new Date(status.lastSeen).getTime() > 15000)
+  const isStale = !status?.lastSeen || (now - new Date(status.lastSeen).getTime() > 10000)
   const isOnline = !!(status?.online && !isStale)
 
   function handleUnlock() {
@@ -46,11 +39,10 @@ function DeviceCard({
       <div className="flex items-start justify-between mb-4 relative z-10">
         <div className="flex items-center gap-3">
           <div
-            className={`p-3 rounded-lg border ${
-              isOnline
+            className={`p-3 rounded-lg border ${isOnline
                 ? "bg-secondary/10 border-secondary/20 text-secondary"
                 : "bg-error/10 border-error/20 text-error"
-            }`}
+              }`}
           >
             <span
               className="material-symbols-outlined text-[24px]"
@@ -65,11 +57,10 @@ function DeviceCard({
           </div>
         </div>
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${
-            isOnline
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${isOnline
               ? "bg-secondary/10 text-secondary border-secondary/20"
               : "bg-error/10 text-error border-error/20"
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[14px]">
             {isOnline ? "wifi" : "wifi_off"}
@@ -86,14 +77,12 @@ function DeviceCard({
                 Door
               </p>
               <div className="flex items-center gap-1.5">
-                <span className={`material-symbols-outlined text-[16px] ${
-                  status.door === "locked" ? "text-tertiary-container" : "text-secondary"
-                }`}>
+                <span className={`material-symbols-outlined text-[16px] ${status.door === "locked" ? "text-tertiary-container" : "text-secondary"
+                  }`}>
                   {status.door === "locked" ? "lock" : "lock_open"}
                 </span>
-                <span className={`font-body-sm text-body-sm ${
-                  status.door === "locked" ? "text-tertiary-container" : "text-secondary"
-                }`}>
+                <span className={`font-body-sm text-body-sm ${status.door === "locked" ? "text-tertiary-container" : "text-secondary"
+                  }`}>
                   {status.door === "locked" ? "Locked" : "Unlocked"}
                 </span>
               </div>
@@ -160,17 +149,20 @@ function DeviceCard({
             <Button
               size="sm"
               onClick={handleUnlock}
-              disabled={unlocking || status.door === "unlocked"}
-              className="flex-1 rounded-xl bg-secondary/75 text-on-surface hover:bg-secondary/60 font-label-md"
+              disabled={!isOnline || unlocking || status.door === "unlocked"}
+              className={`flex-1 rounded-xl ${isOnline ? "bg-secondary/75 text-on-surface hover:bg-secondary/60" : "bg-error/50 text-on-surface-variant"} font-label-md`}
             >
               {unlocking ? (
                 <span className="animate-pulse">Unlocking...</span>
-              ) : (
+              ) : isOnline ? (
                 <>
                   <span className="material-symbols-outlined text-[16px] mr-1">lock_open</span>
-                  Unlock Door
+                  Unlock
                 </>
+              ) : (
+                "Offline"
               )}
+
             </Button>
             <Button
               size="sm"

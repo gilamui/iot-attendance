@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { getUsers, getAttendance } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
-import { timeAgo, getInitials } from "@/lib/utils"
+import { timeAgo, getInitials, formatUptime } from "@/lib/utils"
 import { useMqtt } from "@/components/mqtt-provider"
 import type { AttendanceLog } from "@/types/api"
 import dynamic from "next/dynamic"
+import { DeviceStatus } from "@/types/mqtt"
 
 const AttendanceChart = dynamic(
   () => import("@/components/attendance-chart").then((m) => m.AttendanceChart),
@@ -118,17 +119,23 @@ function getStartOfWeek(date: Date) {
   return d
 }
 
-function formatUptime(s: number) {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`
-}
-
 export default function DashboardPage() {
   const router = useRouter()
   const [logs, setLogs] = useState<AttendanceLog[]>([])
+  const [now, setNow] = useState(Date.now())
   const { connected, devices, publishCommand } = useMqtt()
+
+  // ponytail: re-render every 10s to detect stale lastSeen. upgrade: MQTT LWT
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 10000)
+    return () => clearInterval(id)
+  }, [])
+
+  const isOnline = (device: typeof devices[string]) => {
+    if (!device?.lastSeen) return false
+    const isStale = now - new Date(device.lastSeen).getTime() > 10000
+    return !!(device.online && !isStale)
+  }
 
   const { data: users } = useQuery({
     queryKey: ["users"],
@@ -218,6 +225,10 @@ export default function DashboardPage() {
   const feedLogs = logs?.slice(0, 12) || []
 
   const deviceList = Object.entries(devices)
+
+  const representativeDevice = deviceList.find(([, d]) => d.online)?.[1] 
+  ?? deviceList[0]?.[1] 
+  ?? { online: false, lastSeen: null, uptime: 0, rssi: null, door: "locked" as const }
 
   if (isLoading) {
     return (
@@ -355,7 +366,7 @@ export default function DashboardPage() {
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border font-label-sm text-label-sm ${
                   deviceList.length === 0
                     ? "bg-white/5 border-white/10 text-on-surface-variant"
-                    : deviceList.some(([, d]) => d.online)
+                    : isOnline(representativeDevice)
                       ? "bg-secondary/10 border-secondary/20 text-secondary"
                       : "bg-error/10 border-error/20 text-error"
                 }`}
@@ -364,13 +375,12 @@ export default function DashboardPage() {
                   className={`w-2 h-2 rounded-full ${
                     deviceList.length === 0
                       ? "bg-on-surface-variant/50"
-                      : deviceList.some(([, d]) => d.online)
+                      : isOnline(representativeDevice)
                         ? "bg-secondary"
                         : "bg-error"
                   }`}
                 />
-                {deviceList.filter(([, d]) => d.online).length}/
-                {deviceList.length || 0} Online
+                {isOnline(representativeDevice) ? "Online" : "Offline"}
               </div>
             </div>
 
@@ -388,73 +398,73 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3 flex-1">
-                {deviceList.map(([id, device]) => (
-                  <div
-                    key={id}
-                    className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-2.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+{deviceList.map(([id, device]) => (
+                    <div
+                      key={id}
+                      className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full ${isOnline(device) ? "bg-secondary" : "bg-error"}`}
+                          />
+                          <span className="font-mono-sm text-on-surface">
+                            {id}
+                          </span>
+                        </div>
                         <span
-                          className={`w-2 h-2 rounded-full ${device.online ? "bg-secondary" : "bg-error"}`}
-                        />
-                        <span className="font-mono-sm text-on-surface">
-                          {id}
+                          className={`font-label-sm text-label-sm px-1.5 py-0.5 rounded ${
+                            device.door === "unlocked"
+                              ? "bg-secondary/15 text-secondary"
+                              : "bg-surface-container-highest text-on-surface-variant"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[14px] mr-0.5 align-[-3px]">
+                            {device.door === "unlocked" ? "lock_open" : "lock"}
+                          </span>
+                          {device.door === "unlocked" ? "Unlocked" : "Locked"}
                         </span>
                       </div>
-                      <span
-                        className={`font-label-sm text-label-sm px-1.5 py-0.5 rounded ${
-                          device.door === "unlocked"
-                            ? "bg-secondary/15 text-secondary"
-                            : "bg-surface-container-highest text-on-surface-variant"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[14px] mr-0.5 align-[-3px]">
-                          {device.door === "unlocked" ? "lock_open" : "lock"}
-                        </span>
-                        {device.door === "unlocked" ? "Unlocked" : "Locked"}
-                      </span>
-                    </div>
 
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-body-xs text-on-surface-variant flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                          schedule
-                        </span>
-                        {formatUptime(device.uptime)}
-                      </span>
-                      {device.rssi != null && (
+                      <div className="flex items-center justify-between text-xs">
                         <span className="font-body-xs text-on-surface-variant flex items-center gap-1">
                           <span className="material-symbols-outlined text-[14px]">
-                            signal_cellular_alt
+                            schedule
                           </span>
-                          {device.rssi} dBm
+                          {formatUptime(device.uptime)}
                         </span>
-                      )}
-                    </div>
+                        {device.rssi != null && (
+                          <span className="font-body-xs text-on-surface-variant flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">
+                              signal_cellular_alt
+                            </span>
+                            {device.rssi} dBm
+                          </span>
+                        )}
+                      </div>
 
-                    <button
-                      disabled={!device.online || device.door === "unlocked"}
-                      onClick={() =>
-                        publishCommand(id, { action: "unlock" })
-                      }
-                      className={`w-full py-1.5 rounded-lg font-label-sm text-label-sm flex items-center justify-center gap-1.5 transition-all ${
-                        device.online && device.door === "locked"
-                          ? "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 active:scale-[0.97]"
-                          : "bg-white/5 text-on-surface-variant/40 border border-white/5 cursor-not-allowed"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[16px]">
-                        lock_open
-                      </span>
-                      {device.door === "unlocked"
-                        ? "Already Unlocked"
-                        : device.online
+                      <button
+                        disabled={!isOnline(device) || device.door === "unlocked"}
+                        onClick={() =>
+                          publishCommand(id, { action: "unlock" })
+                        }
+                        className={`w-full py-1.5 rounded-lg font-label-sm text-label-sm flex items-center justify-center gap-1.5 transition-all ${
+                          isOnline(device) && device.door === "locked"
+                            ? "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 active:scale-[0.97]"
+                            : "bg-white/5 text-on-surface-variant/40 border border-white/5 cursor-not-allowed"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          lock_open
+                        </span>
+                        {device.door === "unlocked"
+                          ? "Already Unlocked"
+                          : isOnline(device)
                           ? "Unlock Door"
                           : "Offline"}
-                    </button>
-                  </div>
-                ))}
+                      </button>
+                    </div>
+                  ))}
               </div>
             )}
           </div>

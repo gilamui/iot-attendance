@@ -113,7 +113,7 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
         console.error("MQTT error:", err.message)
       })
 
-      client.on("message", (topic: string, payload: Buffer) => {
+      client.on("message", (topic: string, payload: Buffer, packet: any) => {
         const parts = topic.split("/")
         if (parts.length < 3) return
         const deviceId = parts[1]
@@ -124,13 +124,18 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
 
           switch (subtopic) {
             case "status":
-              setDevices((prev) => ({
-                ...prev,
-                [deviceId]: {
-                  ...data,
-                  lastSeen: new Date().toISOString(),
-                },
-              }))
+              // Ponytail: ignore retained messages — they reflect old state, not current liveness
+              // Ceiling: if ESP32 publishes retain=false but broker misbehaves, we'd miss updates
+              // Upgrade: track connection time, only trust messages after connect
+              if (!packet?.retain) {
+                setDevices((prev) => ({
+                  ...prev,
+                  [deviceId]: {
+                    ...data,
+                    lastSeen: new Date().toISOString(),
+                  },
+                }))
+              }
               break
 
             case "scan":
