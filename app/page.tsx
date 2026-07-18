@@ -1,5 +1,4 @@
-//temember to edit the dashboard layout ui
-
+//fixed
 import { redirect } from "next/navigation"
 
 export default function Home() {
